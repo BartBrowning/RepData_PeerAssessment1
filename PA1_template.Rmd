@@ -1,25 +1,68 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
+title: "Reproducible Research Peer Assessment One"
+author: "Bart Browning"
+date: "11/10/2014"
+output:
   html_document:
-    keep_md: true
+    keep_md: yes
 ---
 
+##1. Read and Process the dataset:##
+```{r read-proc-dataset}
+steps  <- read.csv(file="../../activity.csv",head=TRUE,sep=",", colClasses=c(NA,"Date",NA))
+notNa <- subset(steps, steps!="NA")
+notNaStepsPerDay <- aggregate(steps ~ date, data = notNa, FUN = sum)
+```
 
-## Loading and preprocessing the data
+##2. Mean total number of steps taken per day:##
 
++ Histogram of total number of steps taken per day:
 
+```{r hist-total-steps-per-day}
+hist(notNaStepsPerDay$steps, main="", xlab="steps per day (NA values removed)")
+```
 
-## What is mean total number of steps taken per day?
++ the __mean__ number of steps taken each day is: `r sprintf("%.2f", mean(notNaStepsPerDay$steps))`
++ the __median__ number of steps taken each day is: `r sprintf("%.2f", median(notNaStepsPerDay$steps))`
 
+##3. Steps taken (averaged across all days) versus the 5-minute intervals:##
+```{r steps-taken-during-each-interval}
+notNaAverageStepsPerInterval <- aggregate(steps ~ interval, data = notNa, FUN = mean)
+plot(notNaAverageStepsPerInterval, type="l")  
+maxInterval <- notNaAverageStepsPerInterval[which.max(notNaAverageStepsPerInterval$steps),]$interval
+```
 
++ The 5-minute-interval that on average contains the maximum number of steps is: `r maxInterval`
 
-## What is the average daily activity pattern?
+##4. Imputed-data strategy: replace all NA values in the original data with the average-value for the relevant 5-minute-interval:##
+```{r imputed-data}
+isNa     <- subset(steps, is.na(steps))[,c(2,3)]                                                                                            
+imputeNa <- merge(isNa, notNaAverageStepsPerInterval, by.x="interval", by.y="interval")                                               
+imputed  <- rbind(imputeNa, notNa)                                                                                                     
+```
 
++ Re-compute the histogram from step #2, but with imputed data added in place of NA:
+```{r re-compute-histogram}
+ imputedStepsPerDay <- aggregate(steps ~ date, data = imputed, FUN = sum)                                                               
+ hist(imputedStepsPerDay$steps, main="", xlab="steps per day (NA values replaced)")                                                                                                         
+```
 
++ the __mean__ number of steps taken each day is now: `r sprintf("%.2f", mean(imputedStepsPerDay$steps))`
++ Difference from step #2: `r sprintf("%.2f", mean(imputedStepsPerDay$steps) - mean(notNaStepsPerDay$steps))`
++ the __median__ number of steps taken each day is now: `r sprintf("%.2f", median(imputedStepsPerDay$steps))`
++ Difference from step #2: `r sprintf("%.2f", median(imputedStepsPerDay$steps) - median(notNaStepsPerDay$steps))`
 
-## Imputing missing values
+##5. Average steps taken per 5-minute-interval (weekdays versus weekends):##
+``` {r weekday-versus-weekend, fig.height=8}
+library(timeDate)                                                                                                                     
+newCol      <- ifelse(isWeekday(imputed$date), "weekday", "weekend")                                                                       
+imputedWday <- cbind(imputed, newCol)                                                                                                   
+weekday     <- subset(imputedWday, newCol=="weekday")                                                                                     
+weekend     <- subset(imputedWday, newCol=="weekend")                                                                                     
+weekdayASPI <- aggregate(steps ~ interval, data = weekday, FUN = mean)                                                                
+weekendASPI <- aggregate(steps ~ interval, data = weekend, FUN = mean)                                                                
+par(mfrow=c(2,1))                                                                                                                     
+plot(weekdayASPI, type="l", main="Weekday avg steps per interval")
+plot(weekendASPI, type="l", main="Weekend avg steps per interval")
+```
 
-
-
-## Are there differences in activity patterns between weekdays and weekends?
